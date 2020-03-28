@@ -36,15 +36,15 @@
 	permute_sign
 	
 	mov rcx, r8
-	mov rdx, L
+	mov rdx, revL
 	call cycle_shift
-	call reversed_permute_sign
+	permute_sign
 	reversed_cycle_shift
 	
 	mov rcx, r9
-	mov rdx, R
+	mov rdx, revR
 	call cycle_shift
-	call reversed_permute_sign
+	permute_sign
 	reversed_cycle_shift
 %endmacro
 
@@ -64,6 +64,8 @@ section .bss
 	check_buffer: resb SIGNS
 	L: resb SIGNS
 	R: resb SIGNS
+	revL: resb SIGNS
+	revR: resb SIGNS
 	T: resb SIGNS
 	K: resb 2
 
@@ -127,6 +129,14 @@ _start:
 	mov r9b, [K + 1]
 	sub r9b, ASCII_ONE
 	
+	mov rdi, L
+	mov rsi, revL
+	call reverse_permutation
+	
+	mov rdi, R
+	mov rsi, revR
+	call reverse_permutation
+	
 	call process_input
 	
 	mov eax, SYS_EXIT
@@ -160,6 +170,25 @@ loop1:
 	
 	jmp loop1
 exit1:
+	ret
+	
+reverse_permutation:			; base permutation buffer in rdi, destination buffer in rsi
+	xor rcx, rcx
+	xor rdx, rdx	
+reverse_loop:
+	mov dl, [rdi]
+	sub dl, ASCII_ONE
+	add rsi, rdx
+	add cl, ASCII_ONE
+	mov [rsi], cl
+	sub cl, ASCII_ONE
+	sub rsi, rdx
+	add rcx, 1
+	cmp rcx, 42
+	je exit_reverse
+	add rdi, 1
+	jmp reverse_loop	
+exit_reverse:
 	ret
 	
 reset_buffer:					; sets all signs in check_buffer as 0
@@ -249,22 +278,6 @@ addL:
 	cmp r8, 42
 	je overflowL
 	ret
-	
-reversed_permute_sign:			; gets sign in al, permutation in rdx. Assigns new sign to al.
-	push r10
-	mov rdi, rdx
-	mov r10, 0
-loop3:
-	cmp al, [rdi]
-	je exit3
-	add rdi, 1
-	add r10, 1
-	jmp loop3
-exit3:
-	add r10b, ASCII_ONE
-	mov al, r10b
-	pop r10
-	ret
 
 cycle_shift:					; gets sign in al, shift in rcx. Assigns new sign to al.
 	sub al, ASCII_ONE
@@ -327,9 +340,3 @@ process_input:
 	jmp process_input
 exit5:
 	ret
-	
-	
-	
-	
-	
-	
