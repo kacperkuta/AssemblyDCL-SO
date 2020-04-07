@@ -17,9 +17,14 @@ SYS_WRITE equ 1
 SYS_EXIT  equ 60
 STDOUT    equ 1
 
-section .bss
+extern pix_time
 
+section .bss
+    bufor resb 5
 section .data
+    one  db "1", `\n`
+    zero  db "0", `\n`
+    new_line db `\n`
 
 
 global pix
@@ -29,11 +34,16 @@ pix:
     push rsi
     push rdi
     push rdx
+
+    rdtsc
+    mov rdi, rax
+    call pix_time
+
 pix_loop:
     mov rax, 1
 
     pop rsi
-    lock xadd rax, qword[rsi]
+    lock xadd qword[rsi], rax 
     push rsi
 
     pop rdx
@@ -57,6 +67,11 @@ pix_exit:
     pop rdx
     pop rsi
     pop rdi
+
+    rdtsc
+    mov rdi, rax
+    call pix_time
+
     ret
 
 sys_exit:
