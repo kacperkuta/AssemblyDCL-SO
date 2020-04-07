@@ -1,3 +1,5 @@
+extern pixtime
+
 %macro sub_128 4          ; number1: more significant in 1st arg, less significant in 2nd arg, number2: more significant in 3rd arg, less significant 4th arg
     sub %2, %4
     sbb %1, %3
@@ -17,8 +19,6 @@ SYS_WRITE equ 1
 SYS_EXIT  equ 60
 STDOUT    equ 1
 
-extern pix_time
-
 section .bss
     bufor resb 5
 section .data
@@ -29,48 +29,49 @@ section .data
 
 global pix
 
+global print_bytes
+
 section .text
 pix:
     push rsi
-    push rdi
     push rdx
-
+    push r14
+    push r15
+    push rdi
+    mov r14, rdx
+    mov r15, rsi
     rdtsc
     mov rdi, rax
-    call pix_time
-
+    call pixtime
 pix_loop:
     mov rax, 1
+    lock xadd qword[r15], rax 
 
-    pop rsi
-    lock xadd qword[rsi], rax 
-    push rsi
-
-    pop rdx
-    cmp rax, rdx
-    push rdx
+    cmp rax, r14
     jae pix_exit
 
     mov r11, rax
-    imul r11, 8
+    shl r11, 3
 
     call count_digits
-
     shr rax, 32
+    ;mov rdi, rax
+    ;call print_bytes
 
     pop rdi
-    mov dword[rdi], eax
+    mov dword[rdi + 4*r11], eax
     push rdi
 
     jmp pix_loop
 pix_exit:
-    pop rdx
-    pop rsi
-    pop rdi
-
     rdtsc
     mov rdi, rax
-    call pix_time
+    call pixtime
+    pop rdi
+    pop r15
+    pop r14
+    pop rdx
+    pop rsi
 
     ret
 
