@@ -19,12 +19,12 @@ extern pixtime
     sbb     %1, %3
 %endmacro
 
-%macro bsr1_128 2               ; more significant bytes in 1st arg, less siginificant bytes in 2nd arg
+%macro bsr1_128 2               ; more significant bytes in 1st arg, less significant bytes in 2nd arg
     shrd    %2, %1, 1
     shr     %1, 1
 %endmacro
 
-%macro bsl1_128 2               ; more significant bytes in 1st arg, less siginificant bytes in 2nd arg
+%macro bsl1_128 2               ; more significant bytes in 1st arg, less significant bytes in 2nd arg
     shld    %1, %2, 1
     shl     %2, 1
 %endmacro
@@ -32,7 +32,7 @@ extern pixtime
 global pix
 
 section .text
-pix:
+pix:                            ; global pix function calculating pi digits. Modifies: rax, rcx, r8, r9, r10, r11
     push    rsi                 ; pushing all arguments
     push    rdx
     push    r14
@@ -77,7 +77,7 @@ pix_exit:
     pop     rsi
     ret
 
-power:                          ; counts 16^rsi mod r8, result in rax, modifies: rdi, rdx, rax
+power:                          ; counts 16^rsi mod r8, result in rax, modifies: rdi, rdx
     cmp     rsi, 0              ; check edge case of recursion
     je      power_0
     
@@ -109,24 +109,7 @@ power_0:
     mov     rax, 1
     ret
 
-no_modulo_power:                ; rax = 16^rsi, modifies: rdi, rdx, rax
-    cmp     rsi, 0
-    je      power_0
-
-    push    rsi
-    shr     rsi, 1              ; recursively count 16^(rsi/2)
-    call    no_modulo_power
-    mul     rax
-    pop     rsi
-
-    bt      rsi, 0              ; check if rsi is odd
-    jc      odd_power2
-    ret
-odd_power2:
-    imul    rax, 16
-    ret
-
-Sj:                             ; j in r10, n in r11, result in rax, modifies: rcx, rdx, rdi, rsi, r8, r9
+Sj:                             ; First loop from BBP. j in r10, n in r11, result in rax, modifies: rcx, rdx, rdi, rsi, r8, r9
     xor     rcx, rcx
     xor     rax, rax
     xor     r9, r9              ; result kept in r9
@@ -140,19 +123,21 @@ SLoop1:
 
     add     r9, rax             ; add result to total result
 
-    cmp     rcx, r11
+    cmp     rcx, r11            ; exit cond check
     je      Sj2
     add     rcx, 1
     jmp     SLoop1
-Sj2:
+
+Sj2:                            ; second loop of BBP
     mov     rcx, 1 
+    mov     rsi, 1              ; 16^0
 SLoop2:
     add     rcx, r11
-    lea     r8, [rcx*8 + r10]   ; 8k+j in r8 
+    lea     r8, [rcx*8 + r10]   ; 8k+j in r8
     
     sub     rcx, r11
-    mov     rsi, rcx            ; current 16 power
-    call    no_modulo_power     ; calculate 16^(k-n)
+    shl     rsi, 4              ; current 16 power: rsi *= 16
+    mov     rax, rsi
     mul     r8                  ; calculate 16^(k-n)*(8k+j)
 
     cmp     rdx, 0              ; check if 16^(k-n)*(8k+j) <= 2^64. If not - end.
@@ -182,12 +167,12 @@ count_digits:                   ; n in r11, result in rax (more significant 32 b
 
     sub     r12, rax            ; count {4*S1 - 2*S4} 
 
-    mov     r10, 5              ; count S5
+    add     r10, 1              ; count {S5}
     call    Sj
 
     sub     r12, rax            ; count {4*S1 - 2*S4 - S5} 
 
-    mov     r10, 6              ; count S6
+    add     r10, 1              ; count {S6}
     call    Sj
 
     sub     r12, rax            ; count {4*S1 - 2*S4 - S5 - S6} 
